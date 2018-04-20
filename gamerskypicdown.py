@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import os
 import re
+
+
 # 爬取游民星空壁纸，深度为depth
 
 def getHTML(url):
@@ -15,6 +17,7 @@ def getHTML(url):
     except:
         return ValueError
 
+
 # 页面中几周的list和下一页的url
 def parseHTML(html):
     soup = BeautifulSoup(html, 'html.parser')
@@ -24,66 +27,99 @@ def parseHTML(html):
     for i in range(len(li)):
         href = li[i].find_all('div', attrs={'class': 'tit'})[0].a.get('href')
         hreflist.append(href)
-    nexturl = soup.find('a', attrs={'class': 'p1 nexe'}).get('href')
+    try:
+        nexturl = soup.find('a', attrs={'class': 'p1 nexe'}).get('href')
+    except:
+        nexturl = None
+
     return hreflist, nexturl
 
 
 # 下载一周的所有壁纸
 def downloadPic(ini_url):
+    piclist = []
+    html = getHTML(ini_url)
+    soup = BeautifulSoup(html, 'html.parser')
+    all_p = soup.find_all('img', attrs={'class': 'picact'})
+    path = os.path.join(os.path.expanduser('~'), 'Downloads', 'ympic', '壁纸',soup.head.title.getText())
     try:
-        piclist = []
-        html = getHTML(ini_url)
+        next_url = soup.find('a', text='下一页').get('href')
+    except:
+        next_url = None
+    while True:
+        for i in range(len(all_p)):
+            try:
+                src = all_p[i].parent.get('href').split('?')[1]
+                piclist.append(src)
+            except:
+                pass
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except:
+                    pass
+                try:
+                    name = re.findall(r'/gamersky.*', piclist[i])[0]
+                except:
+                    try:
+                        name = re.findall(r'/image0.*', piclist[i])[0]
+                    except:
+                        pass
+                if not os.path.isfile(path + name):
+                    with open(path + name, 'wb') as f:
+                        pic = requests.get(piclist[i]).content
+                        f.write(pic)
+                else:
+                    pass
+            else:
+                try:
+                    name = re.findall(r'/gamersky.*', piclist[i])[0]
+                except:
+                    try:
+                        name = re.findall(r'/image0.*', piclist[i])[0]
+                    except:
+                        break
+                if not os.path.isfile(path + name):
+                    with open(path + name, 'wb') as f:
+                        pic = requests.get(piclist[i]).content
+                        f.write(pic)
+                else:
+                    pass
+        piclist.clear()
+        # 下载一页进行调试
+        # break
+        if not next_url:
+            break
+        url = next_url
+        html = getHTML(url)
         soup = BeautifulSoup(html, 'html.parser')
-        all_p = soup.find_all('img', attrs={'class': 'picact'})
-        path = os.path.join(os.path.expanduser('~'), 'Downloads', 'ympic', soup.head.title.getText())
         try:
             next_url = soup.find('a', text='下一页').get('href')
-            while True:
-                for i in range(len(all_p)):
-                    src = all_p[i].parent.get('href').split('?')[1]
-                    piclist.append(src)
-                    if not os.path.exists(path):
-                        os.mkdir(path)
-                        name = re.findall(r'/gamersky.*', piclist[i])[0]
-                        with open(path + name, 'wb') as f:
-                            pic = requests.get(piclist[i]).content
-                            f.write(pic)
-                    else:
-                        name = re.findall(r'/gamersky.*', piclist[i])[0]
-                        with open(path + name, 'wb') as f:
-                            pic = requests.get(piclist[i]).content
-                            f.write(pic)
-                piclist.clear()
-                # 下载一页进行调试
-                # break
-                if not next_url:
-                    break
-                url = next_url
-                html = getHTML(url)
-                soup = BeautifulSoup(html, 'html.parser')
-                next_url = soup.find('a', text='下一页').get('href')
-                all_p = soup.find_all('img', attrs={'class': 'picact'})
         except:
-            pass
-    except:
-        return ''
+            next_url = None
+        all_p = soup.find_all('img', attrs={'class': 'picact'})
 
 
 def main():
-    depth = 2
+    depth = 12
     ini_url = 'http://www.gamersky.com/ent/258/'
     html = getHTML(ini_url)
     hreflist, nexturl = parseHTML(html)
     # downloadPic(hreflist[0]) 测试代码
     for i in range(len(hreflist)):
         downloadPic(hreflist[i])
-    # downloadPic(hreflist[0])
-    for i in range(depth):
+    #
+    for i in range(depth - 1):
+        print('\r正在爬取第{0}页\n'.format(i+1), end='')
         url = ini_url + nexturl
         html = getHTML(url)
         hreflist, nexturl = parseHTML(html)
+        num = 1
         for j in range(len(hreflist)):
             downloadPic(hreflist[j])
+            print('\r{0}%'.format(num/len(hreflist) * 100), end='')
+            num += 1
 
 
-main()
+# main()
+downloadPic('http://www.gamersky.com/ent/201505/590204.shtml')
