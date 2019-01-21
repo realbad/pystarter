@@ -101,7 +101,7 @@ def downloadPic(ini_url):
 
 
 def main():
-    depth = 12
+    depth = 2
     ini_url = 'http://www.gamersky.com/ent/258/'
     html = getHTML(ini_url)
     hreflist, nexturl = parseHTML(html)
@@ -121,5 +121,5 @@ def main():
             num += 1
 
 
-# main()
-downloadPic('http://www.gamersky.com/ent/201505/590204.shtml')
+main()
+# downloadPic('http://www.gamersky.com/ent/201505/590204.shtml')

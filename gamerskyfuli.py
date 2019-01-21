@@ -127,14 +127,14 @@ def main():
     ini_url = 'http://www.gamersky.com/ent/xz/'
     max_page = 60
     for current_page in range(max_page):
-        print('\r正在爬取第{0}页\n'.format(current_page + 11), end='')
-        href_list = getpiclist(current_page + 11)
+        print('\r正在爬取第{0}页\n'.format(current_page + 20), end='')
+        href_list = getpiclist(current_page + 20)
         num = 1
         for href in href_list:
             downloadPic(href)
             print('\r{0}%'.format(num / len(href_list) * 100), end='')
             num += 1
-        time.sleep(3)
+        time.sleep(5)
 
 
 if __name__ == '__main__':
