@@ -1,10 +1,12 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-
+# plt.figure(figsize=(16,8),dpi=100)
+plt.rcParams['figure.figsize'] = (16.0, 8.0)
+plt.rcParams['figure.dpi'] = 100
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
-
+current_path = []
 
 def generatePos(G):
     pos = {}
@@ -34,31 +36,44 @@ def generatePos(G):
     return pos
 
 
-def draw(G, path, title="广州白云机场"):
+def draw(G, path, title=""):#广州白云机场
+
     pos = generatePos(G)
-    print(pos)
+    # print(pos)
     nx.draw_networkx(G, pos, node_size=150, font_size=8, alpha=0.7, node_color='c', arrows=False)
-    # nx.draw_networkx_edge_labels(G,pos)
+    # edge_labels = nx.get_edge_attributes(G)
+    new_labels = dict(
+        map(lambda x: ((x[0], x[1]), str(x[2]['weight'])), G.edges(data=True)))
+    nx.draw_networkx_edge_labels(G,pos,alpha = 0.9,font_size=8,rotate = False,edge_labels=new_labels,label_pos=0.5)
     Gpath = []
     # 生成path的edge
     for i, x in enumerate(path):
         if i == len(path) - 1: break
         Gpath.append((x, path[i + 1]))
     nx.draw_networkx_edges(G, pos, edgelist=Gpath, edge_color='r', width=2)
-    # nx.draw_networkx_edge_labels(G,pos)
     plt.title(title)
     plt.ylim(-5, 5)
     plt.axis('off')
     plt.show()
 
+def findPath(io,G,ho,stand):
+    if io =='i':
+        path = nx.dijkstra_path(G, source=ho, target=stand)
+        length = nx.dijkstra_path_length(G, source=ho, target=stand)
+    elif io == 'o':
+        path = nx.dijkstra_path(G, source=stand, target=ho)
+        length = nx.dijkstra_path_length(G, source=stand, target=ho)
+    else:
+        path=[]
+        length=[]
+    return path,length
 
 def changeVal(value):
     pass
 
 
 def main():
-    stand = str(input("请输入起始位置："))
-    runway = str(input("请输入交接位置："))
+
     stand_exit = {
         '101': ['c3', 59], '102': ['c3', 53], '103': ['c3', 46], '104': ['c3', 39], '105': ['c3', 32], '106': ['c', 16],
         '107': ['c', 16], '108': ['c4', 20], '109': ['c4', 27], '110': ['c5', 38], '111': ['c5', 43], '112': ['c5', 47],
@@ -72,6 +87,22 @@ def main():
         '215': ['d7', 36],'216': ['d7', 31],'217': ['d7', 26],
 
     }
+    while True:
+        io = str(input("进港/出港？(I/O)\t")).lower()
+        if io == 'i' or io == 'o':
+            break
+        else:
+            print('输入错误')
+    while True:
+        try:
+            stand = str(input("请输入停机位置："))
+            if stand in stand_exit:
+                break
+            else:
+                print('输入错误')
+        except:
+            raise ValueError('停机位输入不合法')
+
     row_n4 = np.array(
         ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16'])
     row_n3 = np.array(
@@ -107,7 +138,7 @@ def main():
     # value = np.array([31, 13, 30, 13, 30, 10, 10, 10, 10, 10, 10, 10, 10])
 
     G = nx.MultiDiGraph()
-    G.add_weighted_edges_from([(stand_exit.get(row_n1[0])[0],row_n1[0],dist_n12[0])])
+    G.add_weighted_edges_from([(stand_exit.get(row_n1[0])[0],row_n1[0], dist_n12[0])])
     G.add_weighted_edges_from([(row_n1[0], stand_exit.get(row_n1[0])[0], dist_n12[0])])
     G.add_weighted_edges_from([(stand_exit.get(row_s1[0])[0],row_s1[0], dist_s12[0])])
     G.add_weighted_edges_from([(row_s1[0], stand_exit.get(row_s1[0])[0], dist_s12[0])])
@@ -149,13 +180,59 @@ def main():
     # coordi = [()]
     G.remove_nodes_from([''])
     # 去掉画图所需空白
-    print(G.edges(data=True))
-    path = nx.dijkstra_path(G, source=stand, target=runway)
-    print("path:", path)
-    length = nx.dijkstra_path_length(G, source=stand, target=runway)
-    print("length:", length)
-    current_path = []
-    current_path.append(path)
-    draw(G, path)
+    # print(G.edges(data=True))
+    while True:
+        try:
+            ho = str(input("请输入交接位置："))
+            if ho in row_n4 or ho in row_s4:
+                break
+        except:
+            raise ValueError
 
-main()
+    path,length = findPath(io,G,ho,stand)
+    print("path:", path)
+    print("length:", length)
+    current_path.append(path)
+    # 对新生成的路径产生一张新图
+    newG = G.copy()
+    # 对场面已存在的路径进行搜索，新的路径中的节点
+    for paths in current_path[:-1]:
+        for cp in path:
+            if cp in paths:
+                # 有公共节点即存在冲突
+                # 追尾冲突,前后计一次即可
+                if path[path.index(cp)-1] == paths[paths.index(cp)-1]:
+                    if newG[path[path.index(cp) - 1]][cp][0]['weight']<199:
+                        newG[path[path.index(cp) - 1]][cp][0]['weight'] += 10
+                # 对头冲突，后者weight=199
+                elif not cp == path[-1] and path[path.index(cp)+1] == paths[paths.index(cp)-1]:
+                    newG[cp][path[path.index(cp) + 1]][0]['weight'] = 199
+                else:
+                    # newG
+                    # 寻找图中双向的edge并改变权重
+                    for edge in newG.edges(data=True):
+                        if cp in edge:
+                            if edge[2]['weight']<199:
+                                edge[2]['weight'] += 20
+                # print(list(G.neighbors(cp)))
+                
+                new_path, new_weight = findPath(io, newG, ho, stand)
+                current_path[-1] = new_path
+                if not path == new_path:
+                    print('new_path:', new_path)
+                path = new_path
+                if new_weight:
+                    print('new_weight:', new_weight)
+    new_length = 0
+    for i, x in enumerate(path):
+        if i == len(path) - 1: break
+        new_length += G[x][path[i + 1]][0]['weight']
+    if not new_length == length:
+        print( 'new_length:', new_length)
+    # print('new_path:', path)
+    # print('newlength', newlength)
+    print('current path:', current_path)
+    draw(newG, path)
+
+while True:
+    main()
